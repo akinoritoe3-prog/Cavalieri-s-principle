@@ -1,1 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カヴァリエリの原理 視覚化シミュレーター</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- KaTeX (数式表示) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              900: '#0c4a6e',
+            },
+            roseBrand: {
+              400: '#fb7185',
+              500: '#f43f5e',
+              600: '#e11d48',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    canvas {
+      touch-action: none;
+    }
+    /* カスタムスライダー */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #1e293b;
+      border-radius: 8px;
+      height: 8px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+      transition: transform 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+    }
+    .glow-rose {
+      box-shadow: 0 0 20px rgba(244, 63, 94, 0.25);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col pb-10 selection:bg-sky-500 selection:text-white">
 
+  <!-- ヘッダー -->
+  <header class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-gradient-to-tr from-sky-500 to-indigo-500 rounded-xl text-white shadow-lg shadow-sky-500/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-sky-400 via-indigo-300 to-rose-400 bg-clip-text text-transparent">
+            カヴァリエリの原理 視覚化シミュレーター
+          </h1>
+          <p class="text-xs text-slate-400">高校数学：定積分の図形的解釈と変形アニメーション</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
+          Cavalieri's Principle
+        </span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          高校数学II / 数学III 積分
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-grow flex flex-col gap-6">
+
+    <!-- モード選択タブ -->
+    <div class="flex flex-wrap gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 self-start">
+      <button id="tab-sideBySide" onclick="setMode('sideBySide')" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/></svg>
+        ① スライス探査 (2画面比較)
+      </button>
+      <button id="tab-transform" onclick="setMode('transform')" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+        ② スライス落下変形アニメーション
+      </button>
+      <button id="tab-riemann" onclick="setMode('riemann')" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        ③ 区分求積法 (長方形近似)
+      </button>
+    </div>
+
+    <!-- メインコンテンツ (キャンバス + 操作パネル) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- キャンバス表示エリア -->
+      <div class="lg:col-span-8 flex flex-col gap-4">
+        <div class="relative glass-panel rounded-2xl overflow-hidden p-2 border border-slate-800 shadow-2xl flex flex-col items-center justify-center min-h-[420px]">
+          
+          <!-- キャンバス本体 -->
+          <canvas id="mainCanvas" class="w-full h-[420px] sm:h-[480px] rounded-xl cursor-crosshair"></canvas>
+
+          <!-- オーバーレイ リアルタイムツールチップ (マウスホバー時) -->
+          <div id="canvasHoverBadge" class="absolute top-4 right-4 pointer-events-none hidden bg-slate-950/90 border border-slate-700/80 rounded-xl p-3 shadow-xl backdrop-blur-md text-xs space-y-1">
+            <div class="text-slate-400 font-semibold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-400 inline-block animate-pulse"></span>
+              座標探査インジケータ
+            </div>
+            <div class="text-slate-200">位置 <span id="badge-x" class="font-mono text-sky-400 font-bold">x = 0.00</span></div>
+            <div class="text-slate-200">高さ <span id="badge-h" class="font-mono text-amber-300 font-bold">h(x) = 2.00</span></div>
+          </div>
+
+          <!-- キャンバス操作ガイド -->
+          <div class="absolute bottom-4 left-4 pointer-events-none bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+            キャンバス上をドラッグ/タップして <span class="text-sky-300 font-mono font-bold">x</span> 位置を変更可能
+          </div>
+        </div>
+
+        <!-- アニメーション進捗バー (落下モード時のみ表示) -->
+        <div id="animProgressContainer" class="glass-panel p-4 rounded-2xl border border-slate-800 flex items-center gap-4 hidden">
+          <button id="btn-play" onclick="togglePlay()" class="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white rounded-xl font-bold shadow-lg shadow-sky-500/25 transition-all flex items-center gap-2 text-sm shrink-0">
+            <svg id="play-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+            <span id="play-btn-text">落下開始</span>
+          </button>
+          
+          <button onclick="resetAnim()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all border border-slate-700 shrink-0" title="リセット">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+
+          <div class="flex-grow flex flex-col gap-1">
+            <div class="flex justify-between text-xs text-slate-400">
+              <span>変形・落下進捗度</span>
+              <span id="progressPercent" class="font-mono text-sky-400 font-bold">0%</span>
+            </div>
+            <input type="range" id="slider-progress" min="0" max="1" step="0.001" value="0" oninput="onProgressChange(this.value)" class="w-full">
+          </div>
+        </div>
+      </div>
+
+      <!-- 右側 コントロール ＆ パラメータ パネル -->
+      <div class="lg:col-span-4 flex flex-col gap-5">
+
+        <!-- コントロールカード -->
+        <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-5">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+            <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            パラメータ操作
+          </h2>
+
+          <!-- x位置スライダー -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-sm">
+              <label class="text-slate-300 font-medium">位置 <span class="font-mono text-amber-400 font-bold">x</span> の指定</label>
+              <span id="disp-x" class="font-mono bg-slate-800 px-2.5 py-0.5 rounded-md text-amber-400 font-bold text-sm border border-slate-700">x = 0.50</span>
+            </div>
+            <input type="range" id="slider-x" min="-1.00" max="2.00" step="0.01" value="0.50" oninput="onXChange(this.value)" class="w-full">
+            <div class="flex justify-between text-[11px] text-slate-500 font-mono">
+              <span>x = -1.00 (交点)</span>
+              <span>x = 0.50 (最大高)</span>
+              <span>x = 2.00 (交点)</span>
+            </div>
+            <!-- xプリセットボタン -->
+            <div class="flex gap-1.5 pt-1">
+              <button onclick="setX(-1.0)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs text-slate-300 font-mono">-1.0</button>
+              <button onclick="setX(0.0)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs text-slate-300 font-mono">0.0</button>
+              <button onclick="setX(0.5)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs text-sky-400 font-mono font-bold">0.5(最大)</button>
+              <button onclick="setX(1.0)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs text-slate-300 font-mono">1.0</button>
+              <button onclick="setX(2.0)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs text-slate-300 font-mono">2.0</button>
+            </div>
+          </div>
+
+          <hr class="border-slate-800">
+
+          <!-- 分割数 N スライダー -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-sm">
+              <label class="text-slate-300 font-medium">スライス分割数 <span class="font-mono text-sky-400 font-bold">N</span></label>
+              <span id="disp-N" class="font-mono bg-slate-800 px-2.5 py-0.5 rounded-md text-sky-400 font-bold text-sm border border-slate-700">N = 20</span>
+            </div>
+            <input type="range" id="slider-N" min="5" max="100" step="1" value="20" oninput="onNChange(this.value)" class="w-full">
+            <div class="flex justify-between text-[11px] text-slate-500 font-mono">
+              <span>N = 5 (粗い)</span>
+              <span>N = 20</span>
+              <span>N = 100 (極限)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- リアルタイム数値計測カード -->
+        <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            リアルタイム数値・面積比較
+          </h2>
+
+          <div class="space-y-2.5 text-sm">
+            <!-- 現在の高さ -->
+            <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex justify-between items-center">
+              <div>
+                <div class="text-xs text-slate-400">高さ <span class="font-mono">h(x) = (x+2) - x²</span></div>
+                <div id="math-hx-formula" class="text-slate-200 text-xs"></div>
+              </div>
+              <span id="val-hx" class="font-mono text-lg font-bold text-amber-400">2.250</span>
+            </div>
+
+            <!-- 近似面積 (リーマン和) -->
+            <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex justify-between items-center">
+              <div>
+                <div class="text-xs text-slate-400">区分求積の近似値 <span class="font-mono">S_N</span></div>
+                <div class="text-[11px] text-slate-500">分割幅 Δx = <span id="val-dx" class="font-mono">0.150</span></div>
+              </div>
+              <span id="val-SN" class="font-mono text-lg font-bold text-sky-400">4.511</span>
+            </div>
+
+            <!-- 厳密値 (定積分) -->
+            <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex justify-between items-center">
+              <div>
+                <div class="text-xs text-slate-400">理論的厳密値 (真の面積)</div>
+                <div class="text-[11px] text-sky-300/80">9/2 = 4.5000...</div>
+              </div>
+              <span class="font-mono text-lg font-bold text-emerald-400">4.500</span>
+            </div>
+
+            <!-- 誤差 -->
+            <div class="p-2.5 bg-slate-900/50 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+              <span class="text-slate-400">近似誤差 |S_N - S|</span>
+              <span id="val-error" class="font-mono font-semibold text-slate-300">0.0112</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 数学的解説 ＆ 1/6公式 パネル -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+
+      <!-- カヴァリエリの原理とは -->
+      <div class="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-4">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="p-1.5 bg-sky-500/10 text-sky-400 rounded-lg border border-sky-500/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </span>
+            <h3 class="text-lg font-bold text-slate-100">カヴァリエリの原理 (Cavalieri's Principle)</h3>
+          </div>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            「2つの平面図形において、ある直線（ここではx軸）に平行な任意の直線で切り取られる<strong class="text-sky-300">線分の長さ（高さ $h(x)$）が常に等しければ、2つの図形の面積は等しい</strong>」という幾何学原理です。
+          </p>
+          <div class="mt-3 p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+            <div class="font-semibold text-amber-300">本アプリのポイント:</div>
+            <div>・元の領域: $y = x+2$ と $y = x^2$ の間の高さ $h(x) = (x+2) - x^2$</div>
+            <div>・変形領域: $y = -x^2+x+2$ と $x$軸 ($y=0$) の間の高さ $h(x)$</div>
+            <div>底辺の位置を $y=x^2$ から $y=0$ に整列（落下）させても各縦スライスの長さが全く同じであるため、積分の総和（面積）は変化しません。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 定積分の数式と1/6公式 -->
+      <div class="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-4">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="p-1.5 bg-rose-500/10 text-rose-400 rounded-lg border border-rose-500/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            </span>
+            <h3 class="text-lg font-bold text-slate-100">定積分と「1/6公式」の適用</h3>
+          </div>
+
+          <div class="space-y-3">
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 overflow-x-auto">
+              <div id="katex-integral" class="text-center text-sm py-1"></div>
+            </div>
+
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+              <div class="text-xs font-semibold text-rose-300 flex items-center justify-between">
+                <span>高校数学定番：1/6公式</span>
+                <span id="katex-formula-name" class="font-mono text-[11px] text-slate-400"></span>
+              </div>
+              <div id="katex-onesixth" class="text-center text-xs py-1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="mt-12 text-center text-xs text-slate-500 border-t border-slate-900 py-6">
+    カヴァリエリの原理 (Cavalieri's Principle) 視覚化シミュレーター &copy; 高校数学・積分ビジュアル教材
+  </footer>
+
+  <!-- スクリプト統合 -->
+  <script>
+    // === アプリケーション状態 ===
+    const state = {
+      mode: 'sideBySide', // 'sideBySide' | 'transform' | 'riemann'
+      xVal: 0.5,          // 探索位置 [-1, 2]
+      N: 20,              // 分割数 [5, 100]
+      animProgress: 0,    // 変形進捗度 [0, 1]
+      isPlaying: false,   // アニメーション再生状態
+      speed: 0.008,       // アニメーション再生速度
+      animFrameId: null,
+      isDragging: false   // キャンバスドラッグ状態
+    };
+
+    // Canvas要素とコンテキスト
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 関数定義
+    const f_upper = (x) => x + 2;               // 元の上境界 (直線)
+    const f_lower = (x) => x * x;               // 元の下境界 (放物線)
+    const h_func = (x) => -x * x + x + 2;       // 高さ h(x) = (x+2) - x^2
+
+    // イージング関数 (SmoothStep / Cubic Easing)
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    // 初期化関数
+    window.addEventListener('load', () => {
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      setupCanvasEvents();
+      renderMath();
+      updateUI();
+      startLoop();
+    });
+
+    // Canvasのレスポンシブサイズ調整 (DPI対応)
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      requestAnimationFrame(draw);
+    }
+
+    // 数式表示レンダリング (KaTeX)
+    function renderMath() {
+      if (typeof katex === 'undefined') return;
+
+      try {
+        katex.render(
+          "S = \\int_{-1}^{2} \\left\\{(x+2) - x^2\\right\\} dx = \\int_{-1}^{2} (-x^2 + x + 2) dx = \\frac{9}{2} = 4.5",
+          document.getElementById('katex-integral'),
+          { displayMode: true, throwOnError: false }
+        );
+
+        katex.render(
+          "S = \\frac{|a|}{6}(\\beta - \\alpha)^3 = \\frac{1}{6}(2 - (-1))^3 = \\frac{27}{6} = 4.5",
+          document.getElementById('katex-onesixth'),
+          { displayMode: true, throwOnError: false }
+        );
+
+        katex.render(
+          "\\int_{\\alpha}^{\\beta} -a(x-\\alpha)(x-\\beta)dx",
+          document.getElementById('katex-formula-name'),
+          { displayMode: false, throwOnError: false }
+        );
+      } catch (e) {
+        console.error("KaTeX error:", e);
+      }
+    }
+
+    // モード切替
+    function setMode(newMode) {
+      state.mode = newMode;
+      
+      // ボタンのアクティブ化スタイル切替
+      const tabs = ['sideBySide', 'transform', 'riemann'];
+      tabs.forEach(tab => {
+        const btn = document.getElementById(`tab-${tab}`);
+        if (tab === newMode) {
+          btn.className = "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all bg-sky-500 text-white shadow-lg shadow-sky-500/25";
+        } else {
+          btn.className = "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+        }
+      });
+
+      // 進捗コンテナの表示/非表示
+      const animContainer = document.getElementById('animProgressContainer');
+      if (newMode === 'transform') {
+        animContainer.classList.remove('hidden');
+      } else {
+        animContainer.classList.add('hidden');
+        state.isPlaying = false;
+      }
+
+      updateUI();
+      requestAnimationFrame(draw);
+    }
+
+    // パラメータ変更ハンドラ
+    function onXChange(val) {
+      state.xVal = parseFloat(val);
+      updateUI();
+      requestAnimationFrame(draw);
+    }
+
+    function setX(val) {
+      state.xVal = val;
+      document.getElementById('slider-x').value = val;
+      updateUI();
+      requestAnimationFrame(draw);
+    }
+
+    function onNChange(val) {
+      state.N = parseInt(val, 10);
+      updateUI();
+      requestAnimationFrame(draw);
+    }
+
+    function onProgressChange(val) {
+      state.animProgress = parseFloat(val);
+      updateUI();
+      requestAnimationFrame(draw);
+    }
+
+    function togglePlay() {
+      state.isPlaying = !state.isPlaying;
+      if (state.isPlaying && state.animProgress >= 1) {
+        state.animProgress = 0;
+      }
+      updatePlayBtnUI();
+    }
+
+    function resetAnim() {
+      state.isPlaying = false;
+      state.animProgress = 0;
+      document.getElementById('slider-progress').value = 0;
+      updatePlayBtnUI();
+      updateUI();
+      requestAnimationFrame(draw);
+    }
+
+    function updatePlayBtnUI() {
+      const btnText = document.getElementById('play-btn-text');
+      const icon = document.getElementById('play-icon');
+      if (state.isPlaying) {
+        btnText.innerText = "一時停止";
+        icon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>`;
+      } else {
+        btnText.innerText = state.animProgress >= 1 ? "再実行" : "落下開始";
+        icon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>`;
+      }
+    }
+
+    // UIテキスト更新
+    function updateUI() {
+      const x = state.xVal;
+      const N = state.N;
+      const h = h_func(x);
+
+      document.getElementById('disp-x').innerText = `x = ${x.toFixed(2)}`;
+      document.getElementById('slider-x').value = x;
+
+      document.getElementById('disp-N').innerText = `N = ${N}`;
+      document.getElementById('slider-N').value = N;
+
+      document.getElementById('val-hx').innerText = h < 0 ? "0.000" : h.toFixed(3);
+      
+      if (typeof katex !== 'undefined') {
+        const xStr = x.toFixed(2);
+        const hStr = h.toFixed(3);
+        katex.render(
+          `h(${xStr}) = (${xStr}+2) - (${xStr})^2 = ${hStr}`,
+          document.getElementById('math-hx-formula'),
+          { displayMode: false, throwOnError: false }
+        );
+      }
+
+      // リーマン和 (区分求積法) 計算
+      const a = -1.0, b = 2.0;
+      const dx = (b - a) / N;
+      let SN = 0;
+      for (let i = 0; i < N; i++) {
+        const x_mid = a + (i + 0.5) * dx;
+        SN += h_func(x_mid) * dx;
+      }
+
+      document.getElementById('val-dx').innerText = dx.toFixed(3);
+      document.getElementById('val-SN').innerText = SN.toFixed(3);
+      document.getElementById('val-error').innerText = Math.abs(SN - 4.5).toFixed(4);
+
+      // 進捗表示
+      document.getElementById('progressPercent').innerText = `${Math.round(state.animProgress * 100)}%`;
+      document.getElementById('slider-progress').value = state.animProgress;
+    }
+
+    // メインアニメーションループ
+    function startLoop() {
+      function loop() {
+        if (state.isPlaying && state.mode === 'transform') {
+          state.animProgress += state.speed;
+          if (state.animProgress >= 1) {
+            state.animProgress = 1;
+            state.isPlaying = false;
+            updatePlayBtnUI();
+          }
+          updateUI();
+          draw();
+        }
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    // ==========================================
+    // Canvas 描画エンジン
+    // ==========================================
+
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      // キャンバスクリア
+      ctx.clearRect(0, 0, width, height);
+
+      if (state.mode === 'sideBySide') {
+        drawSideBySideMode(width, height);
+      } else if (state.mode === 'transform') {
+        drawTransformMode(width, height);
+      } else if (state.mode === 'riemann') {
+        drawRiemannMode(width, height);
+      }
+    }
+
+    // --- ① スライス探査 (2画面比較) モード描画 ---
+    function drawSideBySideMode(width, height) {
+      const halfW = width / 2;
+
+      // 画面1: 元の領域 (左)
+      const viewLeft = {
+        left: 0, top: 0, width: halfW, height: height,
+        xMin: -1.8, xMax: 2.8, yMin: -0.8, yMax: 4.8
+      };
+
+      // 画面2: 変形領域 (右)
+      const viewRight = {
+        left: halfW, top: 0, width: halfW, height: height,
+        xMin: -1.8, xMax: 2.8, yMin: -0.8, yMax: 4.8
+      };
+
+      // 背景・グリッド・軸
+      drawGridAndAxes(viewLeft, "元の領域: y = x + 2 と y = x²");
+      drawGridAndAxes(viewRight, "変形領域: y = -x² + x + 2 と y = 0");
+
+      // 中央の区切り線
+      ctx.strokeStyle = '#334155';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(halfW, 0);
+      ctx.lineTo(halfW, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 左ビューポート: 元の領域描画
+      drawRegion(viewLeft, (x) => f_lower(x), (x) => f_upper(x), 'rgba(56, 189, 248, 0.25)', '#38bdf8', '#a855f7');
+
+      // 右ビューポート: 変形領域描画
+      drawRegion(viewRight, (x) => 0, (x) => h_func(x), 'rgba(244, 63, 94, 0.25)', '#38bdf8', '#f43f5e');
+
+      // 両ビューポートでの現在位置 x のハイライトスライス線
+      const x = state.xVal;
+      if (x >= -1.0 && x <= 2.0) {
+        const h = h_func(x);
+
+        // 左スライス (線分)
+        const yL1 = f_lower(x);
+        const yL2 = f_upper(x);
+        drawVerticalSlice(viewLeft, x, yL1, yL2, '#fbbf24', `h(${x.toFixed(2)}) = ${h.toFixed(2)}`);
+
+        // 右スライス (線分)
+        const yR1 = 0;
+        const yR2 = h;
+        drawVerticalSlice(viewRight, x, yR1, yR2, '#fbbf24', `h(${x.toFixed(2)}) = ${h.toFixed(2)}`);
+
+        // 中央接続演出（同じ高さであることを強調）
+        const pL = mathToPixel(viewLeft, x, (yL1 + yL2) / 2);
+        const pR = mathToPixel(viewRight, x, (yR1 + yR2) / 2);
+
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+        ctx.setLineDash([3, 3]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(pL.px, pL.py);
+        ctx.lineTo(pR.px, pR.py);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // --- ② スライス落下変形アニメーション モード描画 ---
+    function drawTransformMode(width, height) {
+      const view = {
+        left: 0, top: 0, width: width, height: height,
+        xMin: -2.2, xMax: 3.2, yMin: -0.8, yMax: 4.8
+      };
+
+      drawGridAndAxes(view, "スライス落下・変形アニメーション");
+
+      // うっすら元のガイド境界を描画
+      drawRegion(view, (x) => f_lower(x), (x) => f_upper(x), 'rgba(56, 189, 248, 0.08)', 'rgba(56, 189, 248, 0.3)', 'rgba(168, 85, 247, 0.3)');
+
+      // うっすら着地位置のガイド境界を描画
+      drawRegion(view, (x) => 0, (x) => h_func(x), 'rgba(244, 63, 94, 0.08)', 'rgba(56, 189, 248, 0.3)', 'rgba(244, 63, 94, 0.3)');
+
+      // 進捗値とイージング
+      const progress = state.animProgress;
+      const easeT = easeInOutCubic(progress);
+
+      // N個のスライス帯をアニメーション描画
+      const a = -1.0, b = 2.0;
+      const N = state.N;
+      const dx = (b - a) / N;
+
+      for (let i = 0; i < N; i++) {
+        const x_left = a + i * dx;
+        const x_right = a + (i + 1) * dx;
+        const x_mid = (x_left + x_right) / 2;
+
+        const h_mid = h_func(x_mid);
+        if (h_mid <= 0) continue;
+
+        // 下端の高さ: 初期位置は x^2、目標位置は 0
+        const y_start = f_lower(x_mid);
+        const y_end = 0;
+        const current_y_bottom = y_start * (1 - easeT) + y_end * easeT;
+        const current_y_top = current_y_bottom + h_mid;
+
+        // スライス四角形のピクセル座標
+        const p1 = mathToPixel(view, x_left, current_y_bottom);
+        const p2 = mathToPixel(view, x_right, current_y_bottom);
+        const p3 = mathToPixel(view, x_right, current_y_top);
+        const p4 = mathToPixel(view, x_left, current_y_top);
+
+        // 色のグラデーション補間 (青紫 -> ピンクローズ)
+        const r = Math.round(56 * (1 - easeT) + 244 * easeT);
+        const g = Math.round(189 * (1 - easeT) + 63 * easeT);
+        const bCol = Math.round(248 * (1 - easeT) + 94 * easeT);
+
+        ctx.fillStyle = `rgba(${r}, ${g}, ${bCol}, 0.65)`;
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${bCol}, 0.9)`;
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(p1.px, p1.py);
+        ctx.lineTo(p2.px, p2.py);
+        ctx.lineTo(p3.px, p3.py);
+        ctx.lineTo(p4.px, p4.py);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // 現在選択の x 位置線
+      const x = state.xVal;
+      if (x >= -1.0 && x <= 2.0) {
+        const h = h_func(x);
+        const current_bottom = f_lower(x) * (1 - easeT);
+        const current_top = current_bottom + h;
+
+        drawVerticalSlice(view, x, current_bottom, current_top, '#fbbf24', `h = ${h.toFixed(2)}`);
+      }
+    }
+
+    // --- ③ 区分求積法 (長方形近似) モード描画 ---
+    function drawRiemannMode(width, height) {
+      const halfW = width / 2;
+
+      const viewLeft = {
+        left: 0, top: 0, width: halfW, height: height,
+        xMin: -1.8, xMax: 2.8, yMin: -0.8, yMax: 4.8
+      };
+
+      const viewRight = {
+        left: halfW, top: 0, width: halfW, height: height,
+        xMin: -1.8, xMax: 2.8, yMin: -0.8, yMax: 4.8
+      };
+
+      drawGridAndAxes(viewLeft, "元の領域の長方形近似 (底辺: y = x²)");
+      drawGridAndAxes(viewRight, "変形領域の長方形近似 (底辺: y = 0)");
+
+      // 中央切り取り線
+      ctx.strokeStyle = '#334155';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(halfW, 0);
+      ctx.lineTo(halfW, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 境界描画
+      drawRegion(viewLeft, (x) => f_lower(x), (x) => f_upper(x), 'rgba(56, 189, 248, 0.1)', 'rgba(56, 189, 248, 0.4)', 'rgba(168, 85, 247, 0.4)');
+      drawRegion(viewRight, (x) => 0, (x) => h_func(x), 'rgba(244, 63, 94, 0.1)', 'rgba(56, 189, 248, 0.4)', 'rgba(244, 63, 94, 0.4)');
+
+      // 長方形を描画
+      const a = -1.0, b = 2.0;
+      const N = state.N;
+      const dx = (b - a) / N;
+
+      for (let i = 0; i < N; i++) {
+        const x_left = a + i * dx;
+        const x_right = a + (i + 1) * dx;
+        const x_mid = (x_left + x_right) / 2;
+        const h = h_func(x_mid);
+        if (h <= 0) continue;
+
+        // 左: 元の長方形 (下端: x_mid^2, 上端: x_mid^2 + h)
+        const yL_bot = f_lower(x_mid);
+        const yL_top = yL_bot + h;
+        drawRectangleBlock(viewLeft, x_left, x_right, yL_bot, yL_top, 'rgba(56, 189, 248, 0.4)', '#38bdf8');
+
+        // 右: 変形後の長方形 (下端: 0, 上端: h)
+        const yR_bot = 0;
+        const yR_top = h;
+        drawRectangleBlock(viewRight, x_left, x_right, yR_bot, yR_top, 'rgba(244, 63, 94, 0.4)', '#f43f5e');
+      }
+
+      // 現在の x 位置ハイライト
+      const x = state.xVal;
+      if (x >= -1.0 && x <= 2.0) {
+        const h = h_func(x);
+        drawVerticalSlice(viewLeft, x, f_lower(x), f_lower(x) + h, '#fbbf24', null);
+        drawVerticalSlice(viewRight, x, 0, h, '#fbbf24', null);
+      }
+    }
+
+    // --- 補助描画関数群 ---
+
+    // 座標変換 (数学座標 -> Pixel座標)
+    function mathToPixel(view, x, y) {
+      const px = view.left + ((x - view.xMin) / (view.xMax - view.xMin)) * view.width;
+      const py = view.top + view.height - ((y - view.yMin) / (view.yMax - view.yMin)) * view.height;
+      return { px, py };
+    }
+
+    // 座標逆変換 (Pixel座標 -> 数学座標 x)
+    function pixelToMathX(view, px) {
+      return view.xMin + ((px - view.left) / view.width) * (view.xMax - view.xMin);
+    }
+
+    // グリッド線と座標軸の描画
+    function drawGridAndAxes(view, title) {
+      // 背景
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(view.left, view.top, view.width, view.height);
+
+      ctx.lineWidth = 1;
+      
+      // 細かいグリッド (0.5刻み)
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+      for (let x = Math.ceil(view.xMin * 2) / 2; x <= view.xMax; x += 0.5) {
+        const p1 = mathToPixel(view, x, view.yMin);
+        const p2 = mathToPixel(view, x, view.yMax);
+        ctx.beginPath();
+        ctx.moveTo(p1.px, p1.py);
+        ctx.lineTo(p2.px, p2.py);
+        ctx.stroke();
+      }
+      for (let y = Math.ceil(view.yMin * 2) / 2; y <= view.yMax; y += 0.5) {
+        const p1 = mathToPixel(view, view.xMin, y);
+        const p2 = mathToPixel(view, view.xMax, y);
+        ctx.beginPath();
+        ctx.moveTo(p1.px, p1.py);
+        ctx.lineTo(p2.px, p2.py);
+        ctx.stroke();
+      }
+
+      // 座標軸 (x軸, y軸)
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1.5;
+
+      // x軸 (y=0)
+      const xAxis1 = mathToPixel(view, view.xMin, 0);
+      const xAxis2 = mathToPixel(view, view.xMax, 0);
+      ctx.beginPath();
+      ctx.moveTo(xAxis1.px, xAxis1.py);
+      ctx.lineTo(xAxis2.px, xAxis2.py);
+      ctx.stroke();
+
+      // y軸 (x=0)
+      const yAxis1 = mathToPixel(view, 0, view.yMin);
+      const yAxis2 = mathToPixel(view, 0, view.yMax);
+      ctx.beginPath();
+      ctx.moveTo(yAxis1.px, yAxis1.py);
+      ctx.lineTo(yAxis2.px, yAxis2.py);
+      ctx.stroke();
+
+      // 目盛り数値
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      for (let x = -2; x <= 3; x++) {
+        if (x < view.xMin || x > view.xMax) continue;
+        const p = mathToPixel(view, x, 0);
+        ctx.fillText(x.toString(), p.px, p.py + 4);
+      }
+
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let y = 1; y <= 4; y++) {
+        if (y < view.yMin || y > view.yMax) continue;
+        const p = mathToPixel(view, 0, y);
+        ctx.fillText(y.toString(), p.px - 6, p.py);
+      }
+
+      // タイトル表示
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 12px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(title, view.left + 12, view.top + 12);
+    }
+
+    // 連続領域の塗りつぶしと境界線描画
+    function drawRegion(view, lowerFunc, upperFunc, fillColor, upperStroke, lowerStroke) {
+      const a = -1.0, b = 2.0;
+      const steps = 100;
+      const dx = (b - a) / steps;
+
+      // 領域パス構築
+      ctx.beginPath();
+      const startP = mathToPixel(view, a, lowerFunc(a));
+      ctx.moveTo(startP.px, startP.py);
+
+      // 上側の曲線
+      for (let i = 0; i <= steps; i++) {
+        const x = a + i * dx;
+        const p = mathToPixel(view, x, upperFunc(x));
+        ctx.lineTo(p.px, p.py);
+      }
+
+      // 下側の曲線 (逆向き)
+      for (let i = steps; i >= 0; i--) {
+        const x = a + i * dx;
+        const p = mathToPixel(view, x, lowerFunc(x));
+        ctx.lineTo(p.px, p.py);
+      }
+
+      ctx.closePath();
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+
+      // 上側境界線の描画
+      ctx.strokeStyle = upperStroke;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const x = a + i * dx;
+        const p = mathToPixel(view, x, upperFunc(x));
+        if (i === 0) ctx.moveTo(p.px, p.py);
+        else ctx.lineTo(p.px, p.py);
+      }
+      ctx.stroke();
+
+      // 下側境界線の描画
+      ctx.strokeStyle = lowerStroke;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const x = a + i * dx;
+        const p = mathToPixel(view, x, lowerFunc(x));
+        if (i === 0) ctx.moveTo(p.px, p.py);
+        else ctx.lineTo(p.px, p.py);
+      }
+      ctx.stroke();
+
+      // 交点 (-1, y) と (2, y) のドット強調
+      [a, b].forEach(xEnd => {
+        const p = mathToPixel(view, xEnd, upperFunc(xEnd));
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.arc(p.px, p.py, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // 縦方向スライス（線分）と発光演出
+    function drawVerticalSlice(view, x, yBottom, yTop, color, label) {
+      const p1 = mathToPixel(view, x, yBottom);
+      const p2 = mathToPixel(view, x, yTop);
+
+      // 線分の発光グラデーション効果
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+
+      ctx.beginPath();
+      ctx.moveTo(p1.px, p1.py);
+      ctx.lineTo(p2.px, p2.py);
+      ctx.stroke();
+
+      // 端点ドット
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(p1.px, p1.py, 4, 0, Math.PI * 2);
+      ctx.arc(p2.px, p2.py, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0; // リセット
+
+      // ラベルテキスト描画
+      if (label) {
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const midY = (p1.py + p2.py) / 2;
+        ctx.fillText(label, p1.px + 8, midY);
+      }
+    }
+
+    // 長方形ブロック描画
+    function drawRectangleBlock(view, xLeft, xRight, yBottom, yTop, fillColor, strokeColor) {
+      const p1 = mathToPixel(view, xLeft, yBottom);
+      const p2 = mathToPixel(view, xRight, yTop);
+
+      const w = p2.px - p1.px;
+      const h = p2.py - p1.py; // pyは上が小
+
+      ctx.fillStyle = fillColor;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 1;
+
+      ctx.fillRect(p1.px, p2.py, w, -h);
+      ctx.strokeRect(p1.px, p2.py, w, -h);
+    }
+
+    // ==========================================
+    // マウス・タッチ操作ハンドラ (キャンバスクリック/ドラッグ)
+    // ==========================================
+
+    function setupCanvasEvents() {
+      const handlePointer = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        if (clientX === undefined) return;
+
+        const px = clientX - rect.left;
+        const py = clientY - rect.top;
+
+        // モードに応じたビューポートの特定
+        let view;
+        if (state.mode === 'sideBySide' || state.mode === 'riemann') {
+          const halfW = rect.width / 2;
+          if (px < halfW) {
+            view = { left: 0, width: halfW, xMin: -1.8, xMax: 2.8 };
+          } else {
+            view = { left: halfW, width: halfW, xMin: -1.8, xMax: 2.8 };
+          }
+        } else {
+          view = { left: 0, width: rect.width, xMin: -2.2, xMax: 3.2 };
+        }
+
+        const mathX = pixelToMathX(view, px);
+        // x の範囲制限 [-1.0, 2.0]
+        const clampedX = Math.max(-1.0, Math.min(2.0, mathX));
+
+        setX(parseFloat(clampedX.toFixed(2)));
+
+        // ツールチップ表示更新
+        const badge = document.getElementById('canvasHoverBadge');
+        badge.classList.remove('hidden');
+        document.getElementById('badge-x').innerText = `x = ${clampedX.toFixed(2)}`;
+        document.getElementById('badge-h').innerText = `h(x) = ${h_func(clampedX).toFixed(2)}`;
+      };
+
+      canvas.addEventListener('mousedown', (e) => {
+        state.isDragging = true;
+        handlePointer(e);
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (state.isDragging) handlePointer(e);
+      });
+
+      window.addEventListener('mouseup', () => {
+        state.isDragging = false;
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        document.getElementById('canvasHoverBadge').classList.add('hidden');
+      });
+
+      // タッチ操作
+      canvas.addEventListener('touchstart', (e) => {
+        state.isDragging = true;
+        handlePointer(e);
+      }, { passive: true });
+
+      canvas.addEventListener('touchmove', (e) => {
+        if (state.isDragging) handlePointer(e);
+      }, { passive: true });
+
+      canvas.addEventListener('touchend', () => {
+        state.isDragging = false;
+        document.getElementById('canvasHoverBadge').classList.add('hidden');
+      });
+    }
+  </script>
+</body>
+</html>
